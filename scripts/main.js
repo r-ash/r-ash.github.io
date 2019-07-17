@@ -12,9 +12,12 @@ function getJsonData(path, callback) {
 }
 
 var data = [];
-var rainbow;
 getJsonData("data/district_prev.json", function(text) {
-	// Filter data
+	filterData(text);
+});
+
+var rainbow;
+function filterData(text) {
 	var counter = 0;
 	var minPrev = 1;
 	var maxPrev = 0;
@@ -34,11 +37,14 @@ getJsonData("data/district_prev.json", function(text) {
   	}
   }
 
-  rainbow = new Rainbow();
-  rainbow.setSpectrum("#f7fcb9", "#addd8e", "#31a354")
-  rainbow.setNumberRange(minPrev, maxPrev);
-});
+  initRainbow(minPrev, maxPrev);
+}
 
+function initRainbow(min, max) {
+	rainbow = new Rainbow();
+  rainbow.setSpectrum("#f7fcb9", "#addd8e", "#31a354");
+  rainbow.setNumberRange(min, max);
+}
 
 function getPrevalence(district) {
   for (var i = 0; i < data.length; i++) {
@@ -71,10 +77,80 @@ function style(feature) {
 		weight: 2,
 		opactiy: 1,
 		fillOpacity: 0.9,
-		color: 'black'
+		color: 'grey'
 	};
 }
 
-var geojson = new L.GeoJSON.AJAX("data/malawi.geojson", {style: style});
+var geojson;
+
+// Info box top right
+var info = L.control();
+
+info.onAdd = function(map) {
+	this._div = L.DomUtil.create('div', 'info');
+  this.update();
+  return this._div;
+};
+
+info.update = function(props) {
+	this._div.innerHTML = '<h4>Malawi Prevalence</h4>' +  (props ?
+        '<b>' + props.district + '</b><br />Mean prevalence: ' + 
+        getPrevalence(props.district) : 'Hover over a region');
+};
+
+info.addTo(mymap);
+
+// Highlighting region on mouse over
+function highlightFeature(e) {
+	var layer = e.target;
+	layer.setStyle({
+		weight: 5,
+		color: '#666',
+		dashArray: '',
+		fillOpacity: 0.7
+	});
+
+	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+		layer.bringToFront();
+	}
+
+	info.update(layer.feature.properties);
+}
+
+function resetHighlight(e) {
+	geojson.resetStyle(e.target);
+	info.update();
+}
+
+function onEachFeature(feature, layer) {
+	layer.on({
+		mouseover: highlightFeature,
+		mouseout: resetHighlight
+	});
+}
+
+geojson = new L.GeoJSON.AJAX("data/malawi.geojson", {
+	style: style,
+  onEachFeature: onEachFeature
+});
 geojson.addTo(mymap);
 
+
+// Legend
+// var legend = L.control({position: 'bottomright'});
+
+// legend.onAdd = function(map) {
+// 	var div = L.DomUtil.create('div', 'info legend'),
+// 	  grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+//     labels = [];
+
+//   for (var i = 0; i < grades.length; i++) {
+//     div.innerHTML +=
+//       '<i style="background:' + getColour(grades[i] + 1) + '"></i> ' +
+//       grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+//   }
+
+//   return div;
+// }
+
+// legend.addTo(map);
