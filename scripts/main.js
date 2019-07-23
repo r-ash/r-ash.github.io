@@ -180,7 +180,7 @@ $("#regionSelect").on('change', function() {
 		// We do removing layers and re-enabling to improve transition
 		removeAllLayers();
     mymap.flyToBounds(regionBounds, {
-    	duration: 0.75
+    	duration: 0.5
     });
     mymap.once('moveend', function() {
       addVisibleGroups(visibleGroups);
