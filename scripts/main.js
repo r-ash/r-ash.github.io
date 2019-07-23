@@ -22,8 +22,6 @@ function style(feature) {
 
 }
 
-var geojson;
-
 // Info box top right
 var info = L.control();
 
@@ -65,17 +63,25 @@ function highlightFeature(e) {
 }
 
 function resetHighlight(e) {
-	geojson.resetStyle(e.target);
-	info.update();
+	var region = e.target.feature.properties.region
+	regionLayerGroups.forEach(function(layerGroup) {
+		if (layerGroup.region == region) {
+			layerGroup.resetStyle(e.target);
+			info.update();
+		}
+	});
 }
 
 function restyleLayers() {
-	geojson.eachLayer(function(layer) {
-		var prevalence = getPrevalence(layer.feature.properties.district)
-		layer.setStyle({
-			fillColor: getColour(prevalence),
-		});
+	regionLayerGroups.forEach(function(layerGroup) {
+		layerGroup.eachLayer(function(layer) {
+		  var prevalence = getPrevalence(layer.feature.properties.district)
+		  layer.setStyle({
+			  fillColor: getColour(prevalence),
+		  });
+	  });
 	});
+
 }
 
 function onEachFeature(feature, layer) {
@@ -85,12 +91,41 @@ function onEachFeature(feature, layer) {
 	});
 }
 
-geojson = new L.GeoJSON.AJAX("data/malawi.geojson", {
-	style: style,
-  onEachFeature: onEachFeature
-});
+// Set up layer groups
+// One layer group for each region, we do this so we can easily
+// pan to a specific region and to hide other regions when
+// a single region is in focus.
+var regionLayerGroups = [];
+var regions = [];
+function getLayerGroups() {
+	var regionQuery = $.getJSON("data/malawi.geojson", function(data, callback) {
+		$.each(data.features, function(i, item) {
+			if (!regions.includes(item.properties.region)) {
+				regions.push(item.properties.region);
+			}
+		});
+	});
 
-mymap.addLayer(geojson);
+  regionQuery.complete(function() {
+    regions.forEach(function(region) {
+    	var layerGroup = new L.geoJSON(regionQuery.responseJSON, {
+	      style: style,
+        onEachFeature: onEachFeature,
+        filter: (feature) => regionFilter(feature, region)
+      });
+      // Add metadata about the region for use later
+      layerGroup.region = region
+      regionLayerGroups.push(layerGroup);
+      layerGroup.addTo(mymap);
+    });
+  });
+}
+
+function regionFilter(feature, region) {
+	return(feature.properties.region === region)
+}
+
+getLayerGroups();
 
 // Legend
 var legend = L.control({position: 'bottomright'});
@@ -119,4 +154,50 @@ function drawLegend() {
   	html = 'No prevalence data for this set of filters';
   }
   return(html);
+}
+
+$("#regionSelect").on('change', function() {
+	var region = this.value;
+	var regionBounds;
+	var visibleGroups = [];
+	regionLayerGroups.forEach(function(layerGroup) {
+		if (layerGroup.region == region) {
+			regionBounds = layerGroup.getBounds();
+      visibleGroups.push(layerGroup);
+		} else if (region == "All") {
+			visibleGroups = regionLayerGroups;
+		  if (typeof regionBounds == 'undefined') {
+		    regionBounds = L.latLngBounds(regionLayerGroups[0].getBounds());
+		  } else {
+		  	regionBounds.extend(layerGroup.getBounds());
+		  }
+		}
+	});
+	// If we haven't selected a specific region then log and do nothing
+	if (typeof regionBounds == 'undefined') {
+		console.log("Selected region does not match a region layer");
+	} else {
+		// We do removing layers and re-enabling to improve transition
+		removeAllLayers();
+    mymap.flyToBounds(regionBounds, {
+    	duration: 0.75
+    });
+    mymap.once('moveend', function() {
+      addVisibleGroups(visibleGroups);
+    });
+  }
+});
+
+function removeAllLayers() {
+	regionLayerGroups.forEach(function(group) {
+		if (mymap.hasLayer(group)) {
+	  	mymap.removeLayer(group);
+	  }
+	});
+}
+
+function addVisibleGroups(visibleGroups) {
+  visibleGroups.forEach(function(visibleGroup) {
+    mymap.addLayer(visibleGroup);   
+  });
 }
