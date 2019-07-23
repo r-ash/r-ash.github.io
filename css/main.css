@@ -1,4 +1,4 @@
-#map { height: 700px; }
+#map { height: 550px; }
 
 .info {
     padding: 6px 8px;
@@ -12,7 +12,6 @@
     margin: 0 0 5px;
     color: #777;
 }
-
 
 .legend {
     line-height: 18px;
