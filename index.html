@@ -13,9 +13,29 @@
    crossorigin=""></script>
    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
    <script src="scripts/rainbowvis.js"></script>
+   <script src="scripts/model.js"></script>
 	</head>
 	<body>
 		A demo site </br>
+		<form id="filtersForm" autocomplete="off">
+			Age group:
+			<input type="radio" name="ageGroup" value="15-49" checked>15-49</input>
+			<input type="radio" name="ageGroup" value="0-14">0-14</input>
+			<input type="radio" name="ageGroup" value="15-24">15-24</input>
+			<input type="radio" name="ageGroup" value="15-64">15-64</input>
+			<input type="radio" name="ageGroup" value="15+">15+</input>
+			<input type="radio" name="ageGroup" value="50+">50+</input><br/>
+			Sex:
+			<input type="radio" name="sex" value="both" checked>Both</input>
+			<input type="radio" name="sex" value="male">Male</input>
+			<input type="radio" name="sex" value="female">Female</input><br/>
+		</form><br/>
+		<select id="regionSelect">
+			<option value="All">All</option>
+      <option value="Northern">Northern</option>
+      <option value="Central">Central</option>
+      <option value="Southern">Southern</option>
+		</select><br/>
 		<div id="map"></div>
 		<script src="scripts/main.js"></script>
 	</body>
