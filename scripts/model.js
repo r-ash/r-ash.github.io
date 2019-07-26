@@ -97,11 +97,23 @@ function getColour(d) {
 	return(colour)
 }
 
-function getPrevalence(district) {
-  for (var i = 0; i < plotData.length; i++) {
-  	var obj = plotData[i];
-  	if (obj.district == district) {
-  		return(obj.mean)
-  	}
+function getPrevalence(district, region) {
+	//TODO: Make this better
+	var adminLevel = $("#adminLevelSelect").val()
+	if (adminLevel == 2) {
+    for (var i = 0; i < plotData.length; i++) {
+  	  var obj = plotData[i];
+  	  if (obj.district == district) {
+  		  return(obj.mean)
+  	  }
+    }
+  } else if (region == "Northern") {
+  	return 0.1;
+  } else if (region == "Central") {
+  	return 0.2;
+  } else if (region == "Southern") {
+  	return 0.3;
+  } else {
+  	return 0.15;
   }
 }

@@ -10,7 +10,7 @@ L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=p
 }).addTo(mymap);
 
 function style(feature) {
-	var prevalence = getPrevalence(feature.properties.district)
+	var prevalence = getPrevalence(feature.properties.district, feature.properties.region)
 
 	return {
 		fillColor: getColour(prevalence),
@@ -33,7 +33,7 @@ info.onAdd = function(map) {
 
 info.update = function(props) {
 	if (typeof props !== 'undefined') {
-		var prev = getPrevalence(props.district);
+		var prev = getPrevalence(props.district, props.region);
 	  if (typeof prev == 'undefined') {
 	  	prev = 'No prevalence data for this set of filters';
 	  }
@@ -75,7 +75,8 @@ function resetHighlight(e) {
 function restyleLayers() {
 	regionLayerGroups.forEach(function(layerGroup) {
 		layerGroup.eachLayer(function(layer) {
-		  var prevalence = getPrevalence(layer.feature.properties.district)
+		  var prevalence = getPrevalence(layer.feature.properties.district, 
+		  	layer.feature.properties.region)
 		  layer.setStyle({
 			  fillColor: getColour(prevalence),
 		  });
@@ -114,11 +115,50 @@ function getLayerGroups() {
         filter: (feature) => regionFilter(feature, region)
       });
       // Add metadata about the region for use later
-      layerGroup.region = region
+      layerGroup.region = region;
+      layerGroup.adminLevel = 2;
       regionLayerGroups.push(layerGroup);
       layerGroup.addTo(mymap);
+      addRegionAggregates(regionQuery.responseJSON, region);
     });
+    addCountryAggregate(regionQuery.responseJSON);
   });
+}
+
+function addRegionAggregates(json, region) {
+	var regionJson = [];
+	json.features.forEach(function(feature) {
+    if (feature.properties.region == region) {
+      regionJson.push(feature);
+    }
+	});
+  var unionedData = turf.union.apply(this, regionJson);
+  var layerGroup = new L.geoJSON(unionedData, {
+	  style: style,
+    onEachFeature: onEachFeature
+  });
+  // Add metadata about the region for use later
+  layerGroup.region = region;
+  layerGroup.adminLevel = 1;
+  regionLayerGroups.push(layerGroup);
+  layerGroup.addTo(mymap);
+  // Hidden initially
+  mymap.removeLayer(layerGroup);
+}
+
+function addCountryAggregate(json) {
+	var unionedData = turf.union.apply(this, json.features)
+	// Remove info which no longer applies
+	var layerGroup = new L.geoJSON(unionedData, {
+	  style: style,
+    onEachFeature: onEachFeature
+  });
+  layerGroup.region = "All";
+  layerGroup.adminLevel = 0;
+  regionLayerGroups.push(layerGroup);
+  layerGroup.addTo(mymap);
+  // Hidden initially
+  mymap.removeLayer(layerGroup);
 }
 
 function regionFilter(feature, region) {
@@ -158,19 +198,34 @@ function drawLegend() {
 
 $("#regionSelect").on('change', function() {
 	var region = this.value;
-	var regionBounds;
+	var adminLevel = $("#adminLevelSelect").val()
+	redrawRegionsAndBounds(adminLevel, region);
+});
+
+$("#adminLevelSelect").on('change', function() {
+	var adminLevel = this.value;
+	var region = $("#regionSelect").val();
+	redrawRegionsAndBounds(adminLevel, region);
+});
+
+function redrawRegionsAndBounds(adminLevel, region) {
 	var visibleGroups = [];
-	regionLayerGroups.forEach(function(layerGroup) {
-		if (layerGroup.region == region) {
-			regionBounds = layerGroup.getBounds();
-      visibleGroups.push(layerGroup);
-		} else if (region == "All") {
-			visibleGroups = regionLayerGroups;
-		  if (typeof regionBounds == 'undefined') {
-		    regionBounds = L.latLngBounds(regionLayerGroups[0].getBounds());
-		  } else {
-		  	regionBounds.extend(layerGroup.getBounds());
-		  }
+	if (adminLevel == 0 || region == "All") {
+		visibleGroups = getAdminLevelGroups(adminLevel);
+	} else {
+	  regionLayerGroups.forEach(function(layerGroup) {
+	  	if (layerGroup.adminLevel == adminLevel && layerGroup.region == region) {
+	  		visibleGroups.push(layerGroup);
+	  	}
+		});
+	}
+
+	var regionBounds;
+	visibleGroups.forEach(function(group) {
+		if (typeof regionBounds == 'undefined') {
+		   regionBounds = L.latLngBounds(visibleGroups[0].getBounds());
+		} else {
+		  regionBounds.extend(group.getBounds());
 		}
 	});
 	// If we haven't selected a specific region then log and do nothing
@@ -186,7 +241,27 @@ $("#regionSelect").on('change', function() {
       addVisibleGroups(visibleGroups);
     });
   }
-});
+}
+
+function getRegionGroups(region) {
+  var groups = [];
+	regionLayerGroups.forEach(function(layerGroup) {
+    if (layerGroup.region == region) {
+    	groups.push(layerGroup);
+    }
+	});
+	return(groups);
+}
+
+function getAdminLevelGroups(adminLevel) {
+	var groups = [];
+	regionLayerGroups.forEach(function(layerGroup) {
+    if (layerGroup.adminLevel == adminLevel) {
+    	groups.push(layerGroup);
+    }
+	});
+	return(groups);
+}
 
 function removeAllLayers() {
 	regionLayerGroups.forEach(function(group) {
