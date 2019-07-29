@@ -90,17 +90,39 @@ function onEachFeature(feature, layer) {
 		mouseover: highlightFeature,
 		mouseout: resetHighlight
 	});
-	
-	// Creates a tooltip on each region
-	// layer.bindTooltip(
-	// 	feature.properties.district,
-	// 	{
-	// 		permanent: true,
-	// 		direction: 'center',
-	// 		className: 'districtLabel'
-	// 	}
- //  );
+	layer.bindTooltip(
+		feature.properties.district,
+		{
+			permanent: true,
+			direction: 'center',
+			className: 'districtLabel'
+		}
+  );
 }
+
+var visible = true;
+// Show labels when beyond a certain zoom level
+mymap.on('zoomend', function(e) {
+	if (mymap.getZoom() > 7) {
+		if (!visible) {
+      regionLayerGroups.forEach(function(group) {
+      	group.eachLayer(function(layer) {
+      		layer.openTooltip();
+      	});
+      });
+      visible = true;
+		}
+	} else {
+		if (visible) {
+			regionLayerGroups.forEach(function(group) {
+      	group.eachLayer(function(layer) {
+          layer.closeTooltip();
+      	});
+      });
+      visible = false;
+		}
+	}
+});
 
 // Set up layer groups
 // One layer group for each region, we do this so we can easily
