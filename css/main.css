@@ -1,4 +1,7 @@
-#map { height: 700px; }
+#map { 
+    height: 700px;
+    width: 1000px;
+}
 
 .info {
     padding: 6px 8px;
