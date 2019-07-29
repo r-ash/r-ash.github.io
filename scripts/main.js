@@ -1,14 +1,13 @@
 var mymap = L.map('map').setView([-13.2543, 34.3015], 7);
 
 function style(feature) {
-	var prevalence = getPrevalence(feature.properties.district, feature.properties.region)
+	var prevalence = getPrevalence(feature.properties.adminLevel, feature.properties.label)
 
 	return {
 		fillColor: getColour(prevalence),
 		weight: 2,
 		opactiy: 1,
 		fillOpacity: 1.0,
-		text: feature.properties.district,
 		color: 'grey'
 	};
 }
@@ -24,13 +23,13 @@ info.onAdd = function(map) {
 
 info.update = function(props) {
 	if (typeof props !== 'undefined') {
-		var prev = getPrevalence(props.district, props.region);
+		var prev = getPrevalence(props.adminLevel, props.label);
 	  if (typeof prev == 'undefined') {
 	  	prev = 'No prevalence data for this set of filters';
 	  }
   }
 	this._div.innerHTML = '<h4>Malawi Prevalence</h4>' +  (props ?
-        '<b>' + props.district + '</b><br />Mean prevalence: ' + 
+        '<b>' + props.label + '</b><br />Mean prevalence: ' + 
         prev : 'Hover over a region');
 };
 
@@ -55,6 +54,7 @@ function highlightFeature(e) {
 
 function resetHighlight(e) {
 	var region = e.target.feature.properties.region
+	var adminLevel = e.target.feature.properties.adminLevel
 	regionLayerGroups.forEach(function(layerGroup) {
 		if (layerGroup.region == region) {
 			layerGroup.resetStyle(e.target);
@@ -66,8 +66,8 @@ function resetHighlight(e) {
 function restyleLayers() {
 	regionLayerGroups.forEach(function(layerGroup) {
 		layerGroup.eachLayer(function(layer) {
-		  var prevalence = getPrevalence(layer.feature.properties.district, 
-		  	layer.feature.properties.region)
+		  var prevalence = getPrevalence(layer.feature.properties.adminLevel, 
+		  	layer.feature.properties.label)
 		  layer.setStyle({
 			  fillColor: getColour(prevalence),
 		  });
@@ -101,12 +101,16 @@ function getLayerGroups() {
   regionQuery.complete(function() {
     regions.forEach(function(region) {
     	var layerGroup = new L.geoJSON(regionQuery.responseJSON, {
-	      style: style,
+    		style: style,
         onEachFeature: onEachFeature,
         filter: (feature) => regionFilter(feature, region)
       });
       // Add metadata about the region for use later
-      layerGroup.label = region;
+      layerGroup.eachLayer(function(layer) {
+      	layer.feature.properties.label = layer.feature.properties.district
+      	layer.feature.properties.adminLevel = 2;
+      })
+      layerGroup.setStyle(style);
       layerGroup.region = region;
       layerGroup.adminLevel = 2;
       regionLayerGroups.push(layerGroup);
@@ -119,18 +123,31 @@ function getLayerGroups() {
 
 function addRegionAggregates(json, region) {
 	var regionJson = [];
-	json.features.forEach(function(feature) {
+	// Cloning the JSON here as using the same json to
+	// build these regions as the ones we do to build the district level
+	// ones means they are pointing to the same underlying data (I think)
+	// therefore updating any properties on this section also updates
+	// them for the district level.
+	cloneJson = JSON.parse(JSON.stringify(json));
+	cloneJson.features.forEach(function(feature) {
     if (feature.properties.region == region) {
       regionJson.push(feature);
     }
 	});
-  var unionedData = turf.union.apply(this, regionJson);
+	// This unioning is super slow. We should do this server side
+	// in the real app and make it available in the geojson
+  var unionedData = turf.union(...regionJson);
   var layerGroup = new L.geoJSON(unionedData, {
-	  style: style,
+  	style: style,
     onEachFeature: onEachFeature
   });
   // Add metadata about the region for use later
-  layerGroup.label = region;
+  layerGroup.eachLayer(function(layer) {
+    layer.feature.properties.label = region;
+    layer.feature.properties.adminLevel = 1;
+  })
+
+  layerGroup.setStyle(style);
   layerGroup.region = region;
   layerGroup.adminLevel = 1;
   regionLayerGroups.push(layerGroup);
@@ -140,15 +157,17 @@ function addRegionAggregates(json, region) {
 }
 
 function addCountryAggregate(json) {
-	var unionedData = turf.union.apply(this, json.features)
+	cloneJson = JSON.parse(JSON.stringify(json)); 
+	var unionedData = turf.union.apply(this, cloneJson.features)
+	// Add label for the region for use later
+  unionedData.properties.label = "Malawi";
+  unionedData.properties.adminLevel = 0;
 	// Remove info which no longer applies
 	var countryGroup = new L.geoJSON(unionedData, {
 	  style: style,
     onEachFeature: onEachFeature
   });
-  countryGroup.label = "Malawi";
-  countryGroup.region = "All";
-  countryGroup.adminLevel = 0;
+  countryGroup.adminLevel = 0
   regionLayerGroups.push(countryGroup);
   countryGroup.addTo(mymap);
   // Hidden initially
@@ -227,11 +246,11 @@ function redrawRegionsAndBounds(adminLevel, region) {
 		console.log("Selected region does not match a region layer");
 	} else {
 		// We do removing layers and re-enabling to improve transition
-		removeAllLayers();
-    mymap.flyToBounds(regionBounds, {
+		mymap.flyToBounds(regionBounds, {
     	duration: 0.5
     });
     mymap.once('moveend', function() {
+    	removeAllLayers();
       addVisibleGroups(visibleGroups);
     });
   }
