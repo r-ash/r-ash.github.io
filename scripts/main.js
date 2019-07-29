@@ -1,14 +1,6 @@
 
 var mymap = L.map('map').setView([-13.2543, 34.3015], 7);
 
-// L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-//     maxZoom: 18,
-//     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
-//         '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-//         'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-//     id: 'mapbox.streets'
-// }).addTo(mymap);
-
 function style(feature) {
 	var prevalence = getPrevalence(feature.properties.district, feature.properties.region)
 
@@ -16,7 +8,7 @@ function style(feature) {
 		fillColor: getColour(prevalence),
 		weight: 2,
 		opactiy: 1,
-		fillOpacity: 0.5,
+		fillOpacity: 1.0,
 		color: 'grey'
 	};
 
@@ -52,7 +44,7 @@ function highlightFeature(e) {
 		weight: 5,
 		color: '#666',
 		dashArray: '',
-		fillOpacity: 0.3
+		fillOpacity: 0.7
 	});
 
 	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
@@ -191,7 +183,6 @@ function addCountryAggregate(json) {
   countryGroup.addTo(mymap);
   // Hidden initially
   mymap.removeLayer(countryGroup);
-  addTiles(unionedData);
 }
 
 function regionFilter(feature, region) {
@@ -308,14 +299,4 @@ function addVisibleGroups(visibleGroups) {
   visibleGroups.forEach(function(visibleGroup) {
     mymap.addLayer(visibleGroup);   
   });
-}
-
-function addTiles(boundaryGroup) {
-  var tiles = L.TileLayer.boundaryCanvas('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
-    id: 'osmMap',
-    boundary: boundaryGroup
-  })
-  mymap.addLayer(tiles);
 }
