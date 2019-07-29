@@ -48,7 +48,8 @@ function highlightFeature(e) {
 	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
 		layer.bringToFront();
 	}
-
+	var popup = e.target.getPopup();
+	popup.setLatLng(e.latlng).openOn(mymap);
 	info.update(layer.feature.properties);
 }
 
@@ -61,6 +62,7 @@ function resetHighlight(e) {
 			info.update();
 		}
 	});
+	e.target.closePopup();
 }
 
 function restyleLayers() {
@@ -76,10 +78,20 @@ function restyleLayers() {
 
 }
 
+function movePopup(e) {
+  e.target.closePopup();
+  var popup = e.target.getPopup();
+	popup.setLatLng(e.latlng).openOn(mymap);
+}
+
 function onEachFeature(feature, layer) {
+	var popup = L.popup();
+	popup.setContent("test");
+	layer.bindPopup("test");
 	layer.on({
 		mouseover: highlightFeature,
-		mouseout: resetHighlight
+		mouseout: resetHighlight,
+		mousemove: movePopup
 	});
 }
 
