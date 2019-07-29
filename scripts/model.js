@@ -19,9 +19,28 @@ var levels;
 var filters;
 getJsonData("data/district_prev.json", function(text) {
 	jsonData = text;
+	setupPalette(jsonData)
 	plotData = filterData();
 	legend.update();
 });
+
+function setupPalette(data) {
+	var min = 1;
+	var max = 0;
+	for (var i = 0; i < data.length; i++) {
+  	var obj = data[i];
+  	if (obj.period == "2018 Q3" && obj.survey_prevalence == "both") {
+      if (obj.mean < min) {
+  	    min = obj.mean;
+  	  }
+  	  if (obj.mean > max) {
+  	    max = obj.mean;
+  	  }
+  	}
+  }
+  drawRainbow(min, max);
+  levels = setLevels(min, max);
+}
 
 // Get selected 
 $(document).ready(function() {
@@ -45,25 +64,15 @@ function filterData() {
 	filters = getSelectedFilters();
 	var data = [];
 	var counter = 0;
-	var min = 1;
-	var max = 0;
 	for (var i = 0; i < jsonData.length; i++) {
   	var obj = jsonData[i];
   	if (obj.period == "2018 Q3" && obj.survey_prevalence == "both") {
   		if (obj.agegr == filters.ageGroup && obj.sex == filters.sex) {
   			data[counter] = obj;
   			counter = counter + 1;
-  			if (obj.mean < min) {
-  	      min = obj.mean;
-  	    }
-  	    if (obj.mean > max) {
-  	      max = obj.mean;
-  	    }
   		}
   	}
   }
-  drawRainbow(min, max);
-  levels = setLevels(min, max);
   return(data);
 }
 

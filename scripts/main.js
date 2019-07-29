@@ -1,4 +1,3 @@
-
 var mymap = L.map('map').setView([-13.2543, 34.3015], 7);
 
 function style(feature) {
@@ -9,9 +8,9 @@ function style(feature) {
 		weight: 2,
 		opactiy: 1,
 		fillOpacity: 1.0,
+		text: feature.properties.district,
 		color: 'grey'
 	};
-
 }
 
 // Info box top right
@@ -82,39 +81,7 @@ function onEachFeature(feature, layer) {
 		mouseover: highlightFeature,
 		mouseout: resetHighlight
 	});
-	layer.bindTooltip(
-		feature.properties.district,
-		{
-			permanent: true,
-			direction: 'center',
-			className: 'districtLabel'
-		}
-  );
 }
-
-var visible = true;
-// Show labels when beyond a certain zoom level
-mymap.on('zoomend', function(e) {
-	if (mymap.getZoom() > 7) {
-		if (!visible) {
-      regionLayerGroups.forEach(function(group) {
-      	group.eachLayer(function(layer) {
-      		layer.openTooltip();
-      	});
-      });
-      visible = true;
-		}
-	} else {
-		if (visible) {
-			regionLayerGroups.forEach(function(group) {
-      	group.eachLayer(function(layer) {
-          layer.closeTooltip();
-      	});
-      });
-      visible = false;
-		}
-	}
-});
 
 // Set up layer groups
 // One layer group for each region, we do this so we can easily
@@ -139,6 +106,7 @@ function getLayerGroups() {
         filter: (feature) => regionFilter(feature, region)
       });
       // Add metadata about the region for use later
+      layerGroup.label = region;
       layerGroup.region = region;
       layerGroup.adminLevel = 2;
       regionLayerGroups.push(layerGroup);
@@ -162,6 +130,7 @@ function addRegionAggregates(json, region) {
     onEachFeature: onEachFeature
   });
   // Add metadata about the region for use later
+  layerGroup.label = region;
   layerGroup.region = region;
   layerGroup.adminLevel = 1;
   regionLayerGroups.push(layerGroup);
@@ -177,6 +146,7 @@ function addCountryAggregate(json) {
 	  style: style,
     onEachFeature: onEachFeature
   });
+  countryGroup.label = "Malawi";
   countryGroup.region = "All";
   countryGroup.adminLevel = 0;
   regionLayerGroups.push(countryGroup);
