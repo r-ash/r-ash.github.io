@@ -35,6 +35,17 @@ info.update = function(props) {
 
 info.addTo(mymap);
 
+// Setup tooltip
+var bounds = mymap.getBounds().pad(0.25); // slightly out of screen
+var tooltip = L.tooltip({
+  position: 'top',
+  noWrap: true
+})
+  .addTo(mymap)
+  .setContent('Test')
+  .setLatLng(new L.LatLng(bounds.getNorth(), bounds.getCenter().lng));
+mymap.removeLayer(tooltip);
+
 // Highlighting region on mouse over
 function highlightFeature(e) {
 	var layer = e.target;
@@ -48,8 +59,8 @@ function highlightFeature(e) {
 	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
 		layer.bringToFront();
 	}
-	var popup = e.target.getPopup();
-	popup.setLatLng(e.latlng).openOn(mymap);
+	mymap.addLayer(tooltip);
+	tooltip.setContent(layer.feature.properties.label);
 	info.update(layer.feature.properties);
 }
 
@@ -62,7 +73,7 @@ function resetHighlight(e) {
 			info.update();
 		}
 	});
-	e.target.closePopup();
+	mymap.removeLayer(tooltip);
 }
 
 function restyleLayers() {
@@ -78,21 +89,28 @@ function restyleLayers() {
 
 }
 
-function movePopup(e) {
-  e.target.closePopup();
-  var popup = e.target.getPopup();
-	popup.setLatLng(e.latlng).openOn(mymap);
-}
+// function movePopup(e) {
+//   e.target.closeTooltip();
+//   var popup = e.target.getPopup();
+// 	popup.setLatLng(e.latlng).openOn(mymap);
+// }
 
 function onEachFeature(feature, layer) {
-	var popup = L.popup();
-	popup.setContent("test");
-	layer.bindPopup("test");
 	layer.on({
 		mouseover: highlightFeature,
 		mouseout: resetHighlight,
-		mousemove: movePopup
+		mousemove: updateTooltip
 	});
+}
+
+// Setup tooltip
+ // .setLatLng(new L.latLng(bounds.getNorth(), bounds.getCenter().lng));
+
+// mymap
+//   .on('mousemove', updateTooltip)
+
+function updateTooltip(evt) {
+	tooltip.updatePosition(evt.layerPoint);
 }
 
 // Set up layer groups
