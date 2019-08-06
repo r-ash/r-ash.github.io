@@ -64,6 +64,7 @@ function highlightFeature(e) {
 	info.update(layer.feature.properties);
 }
 
+// Reset highlighting on mouseout
 function resetHighlight(e) {
 	var region = e.target.feature.properties.region
 	var adminLevel = e.target.feature.properties.adminLevel
@@ -86,14 +87,11 @@ function restyleLayers() {
 		  });
 	  });
 	});
-
 }
 
-// function movePopup(e) {
-//   e.target.closeTooltip();
-//   var popup = e.target.getPopup();
-// 	popup.setLatLng(e.latlng).openOn(mymap);
-// }
+function updateTooltip(evt) {
+	tooltip.updatePosition(evt.layerPoint);
+}
 
 function onEachFeature(feature, layer) {
 	layer.on({
@@ -101,16 +99,6 @@ function onEachFeature(feature, layer) {
 		mouseout: resetHighlight,
 		mousemove: updateTooltip
 	});
-}
-
-// Setup tooltip
- // .setLatLng(new L.latLng(bounds.getNorth(), bounds.getCenter().lng));
-
-// mymap
-//   .on('mousemove', updateTooltip)
-
-function updateTooltip(evt) {
-	tooltip.updatePosition(evt.layerPoint);
 }
 
 // Set up layer groups
@@ -151,6 +139,13 @@ function getLayerGroups() {
   });
 }
 
+function regionFilter(feature, region) {
+	return(feature.properties.region === region)
+}
+
+// Also add a feature group for each of the regions,
+// region area is calculated by aggregating all districts within
+// the region.
 function addRegionAggregates(json, region) {
 	var regionJson = [];
 	// Cloning the JSON here as using the same json to
@@ -186,6 +181,8 @@ function addRegionAggregates(json, region) {
   mymap.removeLayer(layerGroup);
 }
 
+// Also add a feature group for the country as a whole, worked out
+// by unioning each of the separate regions
 function addCountryAggregate(json) {
 	cloneJson = JSON.parse(JSON.stringify(json)); 
 	var unionedData = turf.union.apply(this, cloneJson.features)
@@ -202,10 +199,6 @@ function addCountryAggregate(json) {
   countryGroup.addTo(mymap);
   // Hidden initially
   mymap.removeLayer(countryGroup);
-}
-
-function regionFilter(feature, region) {
-	return(feature.properties.region === region)
 }
 
 getLayerGroups();
@@ -239,19 +232,24 @@ function drawLegend() {
   return(html);
 }
 
+// Update map based on region and admin level comboboxes
 $("#regionSelect").on('change', function() {
 	var region = this.value;
 	var adminLevel = $("#adminLevelSelect").val()
-	redrawRegionsAndBounds(adminLevel, region);
+	redrawRegionsAndBounds(adminLevel, region, true);
 });
 
 $("#adminLevelSelect").on('change', function() {
 	var adminLevel = this.value;
 	var region = $("#regionSelect").val();
-	redrawRegionsAndBounds(adminLevel, region);
+	if (region !== "All" && adminLevel == 0) {
+		redrawRegionsAndBounds(adminLevel, region, true);
+	} else {
+	  redrawRegionsAndBounds(adminLevel, region, false);
+  }
 });
 
-function redrawRegionsAndBounds(adminLevel, region) {
+function redrawRegionsAndBounds(adminLevel, region, panMap) {
 	var visibleGroups = [];
 	if (adminLevel == 0 || region == "All") {
 		visibleGroups = getAdminLevelGroups(adminLevel);
@@ -276,13 +274,24 @@ function redrawRegionsAndBounds(adminLevel, region) {
 		console.log("Selected region does not match a region layer");
 	} else {
 		// We do removing layers and re-enabling to improve transition
-		mymap.flyToBounds(regionBounds, {
-    	duration: 0.5
-    });
-    mymap.once('moveend', function() {
+		// Ideally we would only do the flyToBounds animation if we knew they
+		// were going to change. As it stands this means if we only
+		// change the admin level then this pauses the map for 0.5s which looks
+		// a bit rubbish. Not easy to work around by just checking current
+		// bounds of the map against the calculated ones as the current
+		// bounds are tied to the specific zoom level/tile granularity available
+		if (panMap) {
+		  mymap.flyToBounds(regionBounds, {
+    	  duration: 0.5
+      });
+      mymap.once('moveend', function() {
+    	  removeAllLayers();
+        addVisibleGroups(visibleGroups);
+      });
+    } else {
     	removeAllLayers();
       addVisibleGroups(visibleGroups);
-    });
+    }
   }
 }
 
